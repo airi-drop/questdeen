@@ -68,14 +68,31 @@ function TopNavbar({
             <Bell size={19} />
           </button>
           <ThemeToggle isDarkMode={isDarkMode} onToggle={onToggleDarkMode} />
-          <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-[#e4dccb] bg-white/70 p-1 dark:border-white/10 dark:bg-white/[0.04] sm:pr-3">
-            <div className="grid size-8 place-items-center rounded-xl bg-[#d9a441] text-[#2d2408] text-sm font-bold dark:bg-[#e6b84a]">
-              {(user?.name || 'A').slice(0, 1).toUpperCase()}
-            </div>
-            <span className="hidden text-sm font-bold text-[#17352b] dark:text-[#f7f3e8] sm:inline">
+          <button
+            aria-label="Open profile and settings"
+            className={`flex shrink-0 items-center gap-2 rounded-2xl border p-1 transition-all hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 dark:border-white/10 sm:pr-3 ${
+              activePage === 'backup'
+                ? 'border-[#1f6f50] bg-[#dde8d2] dark:bg-[#2ddfa3]/10'
+                : 'border-[#e4dccb] bg-white/70 dark:bg-white/[0.04]'
+            }`}
+            onClick={() => onNavigate?.('backup')}
+            type="button"
+          >
+            {user?.profileImage ? (
+              <img
+                alt=""
+                className="size-8 rounded-xl object-cover"
+                src={user.profileImage}
+              />
+            ) : (
+              <div className="grid size-8 place-items-center rounded-xl bg-[#d9a441] text-[#2d2408] text-sm font-bold dark:bg-[#e6b84a]">
+                {(user?.avatarInitial || user?.name || 'A').slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <span className="hidden max-w-28 truncate text-sm font-bold text-[#17352b] dark:text-[#f7f3e8] sm:inline">
               {user?.name || 'Guest'}
             </span>
-          </div>
+          </button>
         </div>
       </div>
     </header>

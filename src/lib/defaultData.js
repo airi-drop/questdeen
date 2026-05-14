@@ -10,6 +10,9 @@ export function createDefaultUserRecord(now = new Date()) {
   return {
     id: DEFAULT_USER_ID,
     name: 'Ahmed',
+    avatarInitial: 'A',
+    profileImage: '',
+    location: null,
     totalXP,
     level: getLevelFromXP(totalXP),
     currentStreak: 0,
@@ -25,7 +28,17 @@ export function createDefaultSettingsRecord(userId = DEFAULT_USER_ID) {
     id: SETTINGS_ID,
     activeUserId: userId,
     theme: 'light',
+    language: 'id',
     notificationsEnabled: true,
+    prayerSettings: {
+      calculationMethod: 'singapore',
+      madhab: 'shafi',
+      notificationsEnabled: true,
+      notificationOffsetMinutes: 10,
+      notifyBeforePrayer: true,
+      notifyAtPrayerTime: true,
+      autoLocationRefresh: true,
+    },
     updatedAt: new Date().toISOString(),
   }
 }

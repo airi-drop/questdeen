@@ -7,7 +7,7 @@ import {
 import { getTodayKey } from './date'
 
 const DB_NAME = 'questdeen_db'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise
 
@@ -74,6 +74,13 @@ function setupSchema(db) {
   }
 
   createStore(db, 'settings')
+
+  const prayerSchedules = createStore(db, 'prayer_schedules')
+  if (prayerSchedules) {
+    prayerSchedules.createIndex('userId_date', ['userId', 'date'], {
+      unique: true,
+    })
+  }
 }
 
 export function initDB() {
@@ -112,6 +119,62 @@ export async function getActiveUser() {
   }
 
   return promisifyRequest(transaction.objectStore('users').get(settings.activeUserId))
+}
+
+export async function getSettings() {
+  const db = await initDB()
+  const settings = await promisifyRequest(
+    db.transaction('settings', 'readonly').objectStore('settings').get(SETTINGS_ID),
+  )
+
+  const defaultSettings = createDefaultSettingsRecord(
+    settings?.activeUserId || DEFAULT_USER_ID,
+  )
+
+  return {
+    ...defaultSettings,
+    ...(settings || {}),
+    prayerSettings: {
+      ...defaultSettings.prayerSettings,
+      ...(settings?.prayerSettings || {}),
+    },
+  }
+}
+
+export async function updateSettings(updates) {
+  const db = await initDB()
+  const existingSettings = await getSettings()
+  const settings = {
+    ...existingSettings,
+    ...updates,
+    prayerSettings: {
+      ...(existingSettings.prayerSettings || createDefaultSettingsRecord().prayerSettings),
+      ...(updates.prayerSettings || {}),
+    },
+    updatedAt: new Date().toISOString(),
+  }
+  const transaction = db.transaction('settings', 'readwrite')
+
+  transaction.objectStore('settings').put(settings)
+  await promisifyTransaction(transaction)
+
+  return settings
+}
+
+export async function updateActiveUser(updates) {
+  const user = await getOrCreateActiveUser()
+  const db = await initDB()
+  const nextUser = {
+    ...user,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  }
+  const transaction = db.transaction('users', 'readwrite')
+
+  transaction.objectStore('users').put(nextUser)
+  await promisifyTransaction(transaction)
+
+  return nextUser
 }
 
 export async function createDefaultUser() {

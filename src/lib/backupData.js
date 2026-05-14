@@ -12,6 +12,7 @@ const BACKUP_STORES = [
   'achievements',
   'ibadah_log',
   'settings',
+  'prayer_schedules',
   'activities',
 ]
 

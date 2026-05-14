@@ -1,6 +1,12 @@
 import { Flame, Sparkles, Trophy } from 'lucide-react'
 import { initDB } from './db'
 import { addDays, getTodayKey } from './date'
+import {
+  createPrayerTimingState,
+  getFirstPrayerFromSchedule,
+  getPrayerScheduleForDate,
+  getTodayPrayerSchedule,
+} from './prayerTimeData'
 import { getLevelFromXP } from './xp'
 
 export const PRAYER_XP = 10
@@ -13,14 +19,6 @@ const PRAYER_LABELS = {
   ashar: 'Ashar',
   maghrib: 'Maghrib',
   isya: 'Isya',
-}
-
-const PRAYER_TIMES = {
-  subuh: '4:36 AM',
-  dzuhur: '12:08 PM',
-  ashar: '3:31 PM',
-  maghrib: '6:21 PM',
-  isya: '7:42 PM',
 }
 
 function requestToPromise(request) {
@@ -60,7 +58,7 @@ function toPrayerView(record) {
     id: record.id,
     name: PRAYER_LABELS[record.prayer],
     prayer: record.prayer,
-    time: PRAYER_TIMES[record.prayer],
+    time: '',
     isDone: record.status === 'done',
     status: record.status,
     xpEarned: record.xpEarned || 0,
@@ -109,7 +107,7 @@ async function getUserPrayerRecords(userId) {
   return records.filter((record) => record.userId === userId)
 }
 
-export async function getPrayerDashboardData(user) {
+export async function getPrayerDashboardData(user, settings, now = new Date()) {
   const db = await initDB()
   const todayKey = getTodayKey()
   const prayerStore = db.transaction('prayers', 'readonly').objectStore('prayers')
@@ -128,10 +126,24 @@ export async function getPrayerDashboardData(user) {
     (total, record) => total + (record.xpEarned || 0),
     0,
   )
+  const schedule = await getTodayPrayerSchedule(user, settings, now)
+  const timingState = createPrayerTimingState({
+    prayers: normalizedRecords.map(toPrayerView),
+    schedule,
+    now,
+  })
+  const nextPrayer =
+    timingState.nextPrayer ||
+    getFirstPrayerFromSchedule(
+      await getPrayerScheduleForDate(user, settings, addDays(todayKey, 1)),
+    )
 
   return {
     date: todayKey,
-    prayers: normalizedRecords.map(toPrayerView),
+    prayers: timingState.prayers,
+    nextPrayer,
+    currentPrayer: timingState.currentPrayer,
+    prayerSchedule: schedule,
     completedCount,
     todayXP,
     stats: [

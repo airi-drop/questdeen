@@ -72,7 +72,13 @@ function SummaryCard({ icon: Icon, label, value, detail }) {
   )
 }
 
-function Statistics({ activePage = 'statistics', onNavigate, isDarkMode, onToggleDarkMode }) {
+function Statistics({
+  activePage = 'statistics',
+  isDarkMode,
+  onNavigate,
+  onResetLocalData,
+  onToggleDarkMode,
+}) {
   const [stats, setStats] = useState(emptyStats)
 
   useEffect(() => {
@@ -127,6 +133,7 @@ function Statistics({ activePage = 'statistics', onNavigate, isDarkMode, onToggl
       activePage={activePage}
       isDarkMode={isDarkMode}
       onNavigate={onNavigate}
+      onResetLocalData={onResetLocalData}
       onToggleDarkMode={onToggleDarkMode}
       user={stats.user}
     >

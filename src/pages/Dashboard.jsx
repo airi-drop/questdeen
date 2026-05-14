@@ -8,13 +8,17 @@ import QuestSection from '../components/QuestSection'
 import StatCard from '../components/StatCard'
 import TodayContextCard from '../components/TodayContextCard'
 import ToastStack from '../components/ToastStack'
-import { getActiveUser, getOrCreateActiveUser } from '../lib/db'
+import { getActiveUser, getOrCreateActiveUser, getSettings } from '../lib/db'
 import { refreshAchievements } from '../lib/achievementData'
 import { getRecentActivities } from '../lib/activityData'
 import {
   getPrayerDashboardData,
   setTodayPrayerStatus,
 } from '../lib/prayerData'
+import {
+  requestAndStoreLocation,
+  schedulePrayerNotifications,
+} from '../lib/prayerTimeData'
 import {
   addQuranAyatLog,
   addSingleIbadahLog,
@@ -25,6 +29,7 @@ function Dashboard({
   activePage = 'dashboard',
   isDarkMode,
   onNavigate,
+  onResetLocalData,
   onToggleDarkMode,
 }) {
   const [dashboardData, setDashboardData] = useState({
@@ -35,6 +40,10 @@ function Dashboard({
     weeklyQuests: [],
     achievements: [],
     activities: [],
+    settings: null,
+    nextPrayer: null,
+    currentPrayer: null,
+    prayerSchedule: null,
   })
   const [updatingPrayer, setUpdatingPrayer] = useState(null)
   const [quranAyatInput, setQuranAyatInput] = useState('')
@@ -48,7 +57,8 @@ function Dashboard({
     const userAfterQuests = (await getActiveUser()) || user
     const achievementData = await refreshAchievements(userAfterQuests)
     const refreshedUser = (await getActiveUser()) || userAfterQuests
-    const prayerData = await getPrayerDashboardData(refreshedUser)
+    const settings = await getSettings()
+    const prayerData = await getPrayerDashboardData(refreshedUser, settings)
     const activities = await getRecentActivities(refreshedUser.id)
     const todayXP =
       prayerData.todayXP +
@@ -70,6 +80,10 @@ function Dashboard({
     const nextData = {
       user: refreshedUser,
       prayers: prayerData.prayers,
+      settings,
+      nextPrayer: prayerData.nextPrayer,
+      currentPrayer: prayerData.currentPrayer,
+      prayerSchedule: prayerData.prayerSchedule,
       stats,
       dailyQuests: questData.dailyQuests,
       weeklyQuests: questData.weeklyQuests,
@@ -97,6 +111,55 @@ function Dashboard({
 
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (!dashboardData.prayers.length || !dashboardData.settings) {
+      return undefined
+    }
+
+    schedulePrayerNotifications({
+      prayers: dashboardData.prayers,
+      settings: dashboardData.settings,
+    })
+
+    return undefined
+  }, [dashboardData.prayers, dashboardData.settings])
+
+  useEffect(() => {
+    const refreshEnabled =
+      dashboardData.settings?.prayerSettings?.autoLocationRefresh
+
+    if (!refreshEnabled || dashboardData.user?.location || !navigator.permissions) {
+      return undefined
+    }
+
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((permission) => {
+        if (permission.state !== 'granted') {
+          return
+        }
+
+        requestAndStoreLocation()
+          .then(() => loadDashboardData())
+          .catch((error) => {
+            console.error('Failed to auto refresh location:', error)
+          })
+      })
+      .catch(() => {})
+
+    return undefined
+  }, [dashboardData.settings, dashboardData.user, loadDashboardData])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadDashboardData().catch((error) => {
+        console.error('Failed to refresh prayer timing state:', error)
+      })
+    }, 60000)
+
+    return () => window.clearInterval(timer)
+  }, [loadDashboardData])
 
   const addToast = useCallback((title, message) => {
     const id = `${Date.now()}:${Math.random()}`
@@ -181,6 +244,17 @@ function Dashboard({
     }
   }
 
+  const handleRequestLocation = async () => {
+    try {
+      await requestAndStoreLocation({ forceReverseGeocode: true })
+      addToast('Location updated', 'Prayer times now use your current location.')
+      await loadDashboardData()
+    } catch (error) {
+      console.error('Failed to update location:', error)
+      addToast('Location unavailable', error.message || 'Could not read browser location.')
+    }
+  }
+
   const handleAddQuranAyat = async () => {
     if (!dashboardData.user) {
       return
@@ -246,6 +320,7 @@ function Dashboard({
       activePage={activePage}
       isDarkMode={isDarkMode}
       onNavigate={onNavigate}
+      onResetLocalData={onResetLocalData}
       onToggleDarkMode={onToggleDarkMode}
       user={dashboardData.user}
     >
@@ -269,8 +344,12 @@ function Dashboard({
 
       <div className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-12">
         <PrayerTrackerCard
+          currentPrayer={dashboardData.currentPrayer}
+          nextPrayer={dashboardData.nextPrayer}
           onTogglePrayer={handleTogglePrayer}
+          onRequestLocation={handleRequestLocation}
           prayers={dashboardData.prayers}
+          prayerSchedule={dashboardData.prayerSchedule}
           updatingPrayer={updatingPrayer}
         />
         <div className="grid min-w-0 gap-5 md:grid-cols-2 xl:col-span-4 xl:grid-cols-1">

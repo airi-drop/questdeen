@@ -1,5 +1,11 @@
-const CACHE_NAME = 'questdeen-v2'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg']
+const CACHE_NAME = 'questdeen-v3'
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/favicon.svg',
+  '/icons.svg',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -28,20 +34,37 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  const requestUrl = new URL(event.request.url)
+
+  if (requestUrl.origin !== self.location.origin) {
+    return
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return (
-        cachedResponse ||
-        fetch(event.request)
-          .then((response) => {
+    caches.match(event.request).then((cachedResponse) =>
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
             const responseClone = response.clone()
+
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseClone)
             })
-            return response
-          })
-          .catch(() => caches.match('/index.html'))
-      )
-    }),
+          }
+
+          return response
+        })
+        .catch(() => {
+          if (cachedResponse) {
+            return cachedResponse
+          }
+
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html')
+          }
+
+          return Response.error()
+        }),
+    ),
   )
 })

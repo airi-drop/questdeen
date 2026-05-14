@@ -6,6 +6,7 @@ function AppShell({
   children,
   isDarkMode,
   onNavigate,
+  onResetLocalData,
   onToggleDarkMode,
   user,
 }) {
@@ -19,6 +20,7 @@ function AppShell({
             activePage={activePage}
             isDarkMode={isDarkMode}
             onNavigate={onNavigate}
+            onResetLocalData={onResetLocalData}
             onToggleDarkMode={onToggleDarkMode}
             user={user}
           />
@@ -28,14 +30,9 @@ function AppShell({
       <nav className="fixed inset-x-4 bottom-4 z-30 rounded-[1.6rem] border border-[#e4dccb] bg-[#fffdf7]/90 p-2 shadow-[0_18px_45px_rgba(44,35,19,0.12)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10241d]/92 lg:hidden">
         <div
           className="grid gap-1"
-          style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
+          style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
         >
           {navItems
-            .filter((item) =>
-              ['dashboard', 'prayers', 'quests', 'achievement', 'statistics'].includes(
-                item.key,
-              ),
-            )
             .map((item) => (
               <a
                 className={`flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition-all ${
